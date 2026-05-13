@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.log
+.env
+.env.local
+.DS_Store
+Thumbs.db
+
+# Local Everything SDK binaries (user-supplied via install-sdk scripts)
+Everything*.dll
+Everything-SDK*/
+Everything-SDK*.zip
+
+# Smoke test output
+v3-out.txt

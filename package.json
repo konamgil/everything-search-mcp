@@ -1,0 +1,50 @@
+{
+  "name": "everything-search-mcp",
+  "version": "0.2.0",
+  "description": "MCP server exposing voidtools Everything search via FFI. Supports Everything 1.4 (named-search) and 1.5 (content indexing + snippet highlighting).",
+  "type": "module",
+  "bin": {
+    "everything-search-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "scripts",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "smoke": "node dist/smoke.js",
+    "smoke:v3": "node dist/v3-smoke.js",
+    "install-sdk": "powershell -ExecutionPolicy Bypass -File scripts/install-sdk.ps1",
+    "install-sdk-v3": "powershell -ExecutionPolicy Bypass -File scripts/install-sdk-v3.ps1",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "everything",
+    "voidtools",
+    "windows",
+    "search",
+    "file-search",
+    "content-search",
+    "claude-code"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "win32"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "koffi": "^2.10.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}
