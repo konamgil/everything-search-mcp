@@ -1,7 +1,7 @@
 {
-  "name": "everything-search-mcp",
+  "name": "@konamgil/everything-search-mcp",
   "version": "0.2.0",
-  "description": "MCP server exposing voidtools Everything search via FFI. Supports Everything 1.4 (named-search) and 1.5 (content indexing + snippet highlighting).",
+  "description": "MCP server exposing voidtools Everything search via FFI. Supports Everything 1.4 (filename search) and 1.5 (content indexing + snippet highlighting). Index-backed full-text search faster than ripgrep when the content index is built.",
   "type": "module",
   "bin": {
     "everything-search-mcp": "dist/index.js"
@@ -19,25 +19,41 @@
     "smoke:v3": "node dist/v3-smoke.js",
     "install-sdk": "powershell -ExecutionPolicy Bypass -File scripts/install-sdk.ps1",
     "install-sdk-v3": "powershell -ExecutionPolicy Bypass -File scripts/install-sdk-v3.ps1",
+    "postinstall": "node scripts/postinstall.js",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
     "mcp",
+    "model-context-protocol",
     "everything",
     "voidtools",
     "windows",
     "search",
     "file-search",
     "content-search",
+    "full-text-search",
     "claude-code"
   ],
   "license": "MIT",
+  "author": "konamgil",
+  "homepage": "https://github.com/konamgil/everything-search-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/konamgil/everything-search-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/konamgil/everything-search-mcp/issues"
+  },
   "engines": {
     "node": ">=20"
   },
   "os": [
     "win32"
   ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "koffi": "^2.10.0",

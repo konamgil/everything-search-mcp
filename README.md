@@ -15,18 +15,40 @@ Agents tend to assume Everything is "just a filename indexer" and skip it for co
 
 ## Install
 
+### Option A — npx (no clone required)
+
 ```bash
-npm install
-npm run install-sdk      # downloads Everything-SDK.zip   → Everything64.dll       (1.4)
-npm run install-sdk-v3   # downloads Everything-SDK-3.zip → Everything3_x64.dll    (1.5)
+claude mcp add everything-search --scope user -- npx -y @konamgil/everything-search-mcp
+```
+
+`npx` downloads the package and runs its `postinstall`, which fetches both SDK DLLs from voidtools and the `voidtools/everything_sdk3` GitHub release. Re-launch Claude Code so the new MCP is picked up.
+
+You also need the **Everything app itself** installed:
+
+```powershell
+winget install voidtools.Everything
+# For content search: also install Everything 1.5 alpha from https://www.voidtools.com/
+```
+
+### Option B — clone & build (for development)
+
+```bash
+git clone https://github.com/konamgil/everything-search-mcp.git
+cd everything-search-mcp
+npm install                # postinstall fetches both DLLs automatically
 npm run build
 ```
 
-Both DLLs are git-ignored; the install scripts fetch them from voidtools and the official `voidtools/everything_sdk3` GitHub release.
+The two SDK DLLs are git-ignored. If the auto-download is blocked by your network, run them manually:
 
-You also need the Everything app itself installed (`winget install voidtools.Everything` or [voidtools.com](https://www.voidtools.com/)). For full-text content search you want **Everything 1.5 alpha** in addition to / instead of 1.4.
+```bash
+npm run install-sdk        # → Everything64.dll      (1.4 SDK)
+npm run install-sdk-v3     # → Everything3_x64.dll   (1.5 SDK 3.0.0.9)
+```
 
-## Register with Claude Code
+Set `EVERYTHING_MCP_SKIP_POSTINSTALL=1` to disable the auto-downloader.
+
+### Register a cloned build manually
 
 ```bash
 claude mcp add everything-search --scope user \
@@ -35,7 +57,7 @@ claude mcp add everything-search --scope user \
   -- node C:\path\to\everything-search-mcp\dist\index.js
 ```
 
-Then start (or restart) Claude Code so the MCP picks up the new server. `EVERYTHING3_DLL_PATH` is optional — if absent, the server probes common install locations.
+`EVERYTHING3_DLL_PATH` is optional — if absent, the server probes common install locations.
 
 ## Tools
 
