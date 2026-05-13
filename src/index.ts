@@ -15,12 +15,23 @@ const server = new McpServer({
 server.registerTool(
   "everything_search",
   {
-    title: "Everything Search",
+    title: "Everything Search (filename + full-text content)",
     description:
-      "Search files on Windows via voidtools Everything. Auto-uses Everything 1.5 (content/snippet supported) when reachable, falls back to 1.4 otherwise. Set backend='v3-1.5' or 'v1-1.4' to pin. Use content:keyword in the query for full-text search (1.5 only).",
+      "Search files on Windows via voidtools Everything (instant, index-backed). Supports BOTH:\n" +
+      "  1. Filename / path search (works on Everything 1.4 and 1.5)\n" +
+      "  2. Full-text CONTENT search across indexed files — use `content:keyword` in the query (requires Everything 1.5 with content indexing enabled, which is set up here)\n" +
+      "When content is indexed, this is significantly faster than ripgrep/grep over the same scope because lookups hit a pre-built index. Set `includeSnippet: true` to also get the matched snippet with `*highlight*` markers, just like a code-aware grep result.\n\n" +
+      "Examples:\n" +
+      "  • find files named foo.ts:                      query='foo.ts'\n" +
+      "  • find code containing the word ServerRegistry: query='content:ServerRegistry path:mandu'\n" +
+      "  • full-text regex over indexed files:           query='regex:content:export\\\\s+function' (with regex=true)\n" +
+      "  • exact phrase + filename filter:               query='content:\"export function startServer\" ext:ts'\n\n" +
+      "Backend auto-selects 1.5 first, falls back to 1.4. Override with `backend`.",
     inputSchema: {
       query: z.string().describe(
-        'Everything query. Operators: AB | CD (or), !x (not), <a b> (group), "exact phrase", and function operators ext:, size:, dm:, path:, parent:, content: (1.5 only), count:. Set regex=true to interpret the whole query as a regex.',
+        'Everything query. PREFIX WITH `content:` for full-text search inside indexed files (Everything 1.5). ' +
+        'Operators: AB | CD (or), !x (not), <a b> (group), "exact phrase", and function operators ' +
+        'ext:, size:, dm:, path:, parent:, content:, count:. Set regex=true to interpret the whole query as a regex.',
       ),
       max: z.number().int().min(1).max(10000).default(100),
       offset: z.number().int().min(0).default(0),
@@ -37,7 +48,7 @@ server.registerTool(
         .boolean()
         .default(false)
         .describe(
-          "Include matched content snippet with highlight markers. Requires Everything 1.5 (v3 SDK).",
+          "When using content:keyword, include the matched text snippet with `*highlight*` markers (like grep -C). Requires Everything 1.5 with content indexing enabled.",
         ),
       backend: z.enum(["auto", "v3-1.5", "v1-1.4"]).default("auto"),
     },
@@ -68,7 +79,7 @@ server.registerTool(
   {
     title: "Everything Status",
     description:
-      "Report which Everything backends (1.5 v3 + 1.4 v1) are reachable from this process, with version and DB-loaded state for each.",
+      "Report which Everything backends are reachable. If v3 (1.5) is available and dbLoaded, full-text `content:` search via everything_search is supported. If only v1 (1.4) is available, only filename/path search works.",
     inputSchema: {},
   },
   async () => {
