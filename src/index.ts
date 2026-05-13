@@ -3,14 +3,44 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { SORT } from "./everything-sdk.js";
-import { unifiedSearch, getStatus, type Backend } from "./everything-search.js";
+import {
+  unifiedSearch,
+  getStatus,
+  getFileInfo,
+  validateQuery,
+  validatePath,
+  ValidationError,
+  Limits,
+  type Backend,
+} from "./everything-search.js";
 
 const SortKeys = Object.keys(SORT) as (keyof typeof SORT)[];
 
 const server = new McpServer({
   name: "everything-search-mcp",
-  version: "0.2.0",
+  version: "0.3.0",
 });
+
+function ok(payload: object) {
+  return {
+    content: [{ type: "text" as const, text: JSON.stringify({ success: true, ...payload }, null, 2) }],
+  };
+}
+
+function fail(err: unknown, tool: string) {
+  const isVal = err instanceof ValidationError;
+  const errorCode = isVal ? err.errorCode : err instanceof Error && "code" in err ? String((err as { code: unknown }).code) : "INTERNAL_ERROR";
+  const message = err instanceof Error ? err.message : String(err);
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify({ success: false, tool, error: message, errorCode }, null, 2),
+      },
+    ],
+    isError: true,
+  };
+}
 
 server.registerTool(
   "everything_search",
@@ -28,13 +58,17 @@ server.registerTool(
       "  • exact phrase + filename filter:               query='content:\"export function startServer\" ext:ts'\n\n" +
       "Backend auto-selects 1.5 first, falls back to 1.4. Override with `backend`.",
     inputSchema: {
-      query: z.string().describe(
-        'Everything query. PREFIX WITH `content:` for full-text search inside indexed files (Everything 1.5). ' +
-        'Operators: AB | CD (or), !x (not), <a b> (group), "exact phrase", and function operators ' +
-        'ext:, size:, dm:, path:, parent:, content:, count:. Set regex=true to interpret the whole query as a regex.',
-      ),
-      max: z.number().int().min(1).max(10000).default(100),
-      offset: z.number().int().min(0).default(0),
+      query: z
+        .string()
+        .min(1, "Query cannot be empty")
+        .max(Limits.MAX_QUERY_LENGTH)
+        .describe(
+          "Everything query. PREFIX WITH `content:` for full-text search inside indexed files (Everything 1.5). " +
+            'Operators: AB | CD (or), !x (not), <a b> (group), "exact phrase", and function operators ' +
+            "ext:, size:, dm:, path:, parent:, content:, count:. Set regex=true to interpret the whole query as a regex.",
+        ),
+      max: z.number().int().min(1).max(Limits.MAX_RESULTS).default(100),
+      offset: z.number().int().min(0).max(Limits.MAX_OFFSET).default(0),
       matchCase: z.boolean().default(false),
       matchWholeWord: z.boolean().default(false),
       matchPath: z.boolean().default(false),
@@ -54,23 +88,53 @@ server.registerTool(
     },
   },
   async (args) => {
-    const response = await unifiedSearch({
-      query: args.query,
-      matchCase: args.matchCase,
-      matchWholeWord: args.matchWholeWord,
-      matchPath: args.matchPath,
-      regex: args.regex,
-      max: args.max,
-      offset: args.offset,
-      sort: args.sort as never,
-      includeSize: args.includeSize,
-      includeDates: args.includeDates,
-      includeExtension: args.includeExtension,
-      includeAttributes: args.includeAttributes,
-      includeSnippet: args.includeSnippet,
-      backend: args.backend as Backend | "auto",
-    });
-    return { content: [{ type: "text", text: JSON.stringify(response, null, 2) }] };
+    try {
+      validateQuery(args.query);
+      const r = await unifiedSearch({
+        query: args.query,
+        matchCase: args.matchCase,
+        matchWholeWord: args.matchWholeWord,
+        matchPath: args.matchPath,
+        regex: args.regex,
+        max: args.max,
+        offset: args.offset,
+        sort: args.sort as never,
+        includeSize: args.includeSize,
+        includeDates: args.includeDates,
+        includeExtension: args.includeExtension,
+        includeAttributes: args.includeAttributes,
+        includeSnippet: args.includeSnippet,
+        backend: args.backend as Backend | "auto",
+      });
+      return ok(r);
+    } catch (err) {
+      return fail(err, "everything_search");
+    }
+  },
+);
+
+server.registerTool(
+  "everything_get_file_info",
+  {
+    title: "Everything Get File Info",
+    description:
+      "Fetch indexed metadata (size, dateModified/Created/Accessed, extension, attributes) for a specific file or folder by full path. Faster than `fs.stat` for repeated lookups because results come from Everything's pre-built index. Returns `FILE_NOT_FOUND` if the path is not in the index — re-run an index refresh or call `everything_search` first to confirm.",
+    inputSchema: {
+      path: z
+        .string()
+        .min(1, "Path cannot be empty")
+        .max(Limits.MAX_PATH_LENGTH)
+        .describe("Absolute Windows path to look up, e.g. C:\\projects\\foo\\bar.ts"),
+    },
+  },
+  async (args) => {
+    try {
+      validatePath(args.path);
+      const info = await getFileInfo(args.path);
+      return ok({ info });
+    } catch (err) {
+      return fail(err, "everything_get_file_info");
+    }
   },
 );
 
@@ -83,15 +147,19 @@ server.registerTool(
     inputSchema: {},
   },
   async () => {
-    const status = await getStatus();
-    return { content: [{ type: "text", text: JSON.stringify(status, null, 2) }] };
+    try {
+      const status = await getStatus();
+      return ok({ status });
+    } catch (err) {
+      return fail(err, "everything_status");
+    }
   },
 );
 
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  process.stderr.write("everything-search-mcp ready (stdio) — supports 1.5 v3 + 1.4 v1\n");
+  process.stderr.write("everything-search-mcp@0.3.0 ready (stdio) — supports 1.5 v3 + 1.4 v1\n");
 }
 
 main().catch((e) => {

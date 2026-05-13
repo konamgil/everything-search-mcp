@@ -110,18 +110,51 @@ Search Windows files. Same call site handles filename, path, and full-text conte
 }
 ```
 
+### `everything_get_file_info`
+
+Fetch indexed metadata for a single full path. Faster than `fs.stat` for repeated lookups because it comes from Everything's pre-built index.
+
+| Parameter | Type | Notes |
+|---|---|---|
+| `path` | string | Absolute Windows path |
+
+Returns `{ success: true, info: { fullPath, size, dateModified, ... } }` or `errorCode: "FILE_NOT_FOUND"` if the path is not in the index.
+
 ### `everything_status`
 
 Reports which backends are reachable and whether the database is loaded. Use this to verify content search is available:
 
 ```jsonc
 {
-  "v3": { "available": true,  "version": "1.5.0.1409", "dbLoaded": true },
-  "v1": { "available": false, "error": "..." }
+  "success": true,
+  "status": {
+    "v3": { "available": true,  "version": "1.5.0.1409", "dbLoaded": true },
+    "v1": { "available": false, "error": "..." }
+  }
 }
 ```
 
 If `v3.available` is `true` and `v3.dbLoaded` is `true`, `content:` queries work.
+
+## Response envelope
+
+All tools return a JSON envelope:
+
+```jsonc
+// Success
+{ "success": true,  "<resource>": ... }
+// Failure
+{ "success": false, "tool": "everything_search", "error": "Query cannot be empty", "errorCode": "EMPTY_QUERY" }
+```
+
+Common `errorCode`s:
+
+| Code | Meaning |
+|---|---|
+| `EMPTY_QUERY` / `QUERY_TOO_LONG` | Validation failure on `query` |
+| `EMPTY_PATH` / `PATH_TOO_LONG` | Validation failure on `path` |
+| `FILE_NOT_FOUND` | `everything_get_file_info` could not match the path in the index |
+| `INTERNAL_ERROR` | Underlying SDK / FFI error — see `error` field |
 
 ## Enabling 1.5 content indexing
 

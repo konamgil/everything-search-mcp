@@ -1,6 +1,44 @@
 import { getReadySdk as getV1Sdk } from "./everything-sdk.js";
 import { getV3Sdk, type V3SearchOptions, type V3SearchResponse } from "./everything-sdk-v3.js";
 
+export class ValidationError extends Error {
+  readonly errorCode: string;
+  constructor(message: string, errorCode: string) {
+    super(message);
+    this.name = "ValidationError";
+    this.errorCode = errorCode;
+  }
+}
+
+export const Limits = {
+  MAX_QUERY_LENGTH: 4000,
+  MAX_PATH_LENGTH: 4096,
+  MAX_RESULTS: 10000,
+  MAX_OFFSET: 100000,
+} as const;
+
+export function validateQuery(query: unknown): asserts query is string {
+  if (typeof query !== "string") throw new ValidationError("Query must be a string", "INVALID_TYPE");
+  if (query.trim().length === 0) throw new ValidationError("Query cannot be empty", "EMPTY_QUERY");
+  if (query.length > Limits.MAX_QUERY_LENGTH) {
+    throw new ValidationError(
+      `Query exceeds maximum length of ${Limits.MAX_QUERY_LENGTH} characters`,
+      "QUERY_TOO_LONG",
+    );
+  }
+}
+
+export function validatePath(p: unknown): asserts p is string {
+  if (typeof p !== "string") throw new ValidationError("Path must be a string", "INVALID_TYPE");
+  if (p.trim().length === 0) throw new ValidationError("Path cannot be empty", "EMPTY_PATH");
+  if (p.length > Limits.MAX_PATH_LENGTH) {
+    throw new ValidationError(
+      `Path exceeds maximum length of ${Limits.MAX_PATH_LENGTH} characters`,
+      "PATH_TOO_LONG",
+    );
+  }
+}
+
 export type Backend = "v3-1.5" | "v1-1.4";
 
 export interface UnifiedSearchOptions {
@@ -142,6 +180,28 @@ export async function unifiedSearch(options: UnifiedSearchOptions): Promise<Unif
       throw new Error(`Both backends failed.\n  v3 (1.5): ${m1}\n  v1 (1.4): ${m2}`);
     }
   }
+}
+
+export async function getFileInfo(fullPath: string): Promise<UnifiedSearchResult> {
+  validatePath(fullPath);
+  const resp = await unifiedSearch({
+    query: `"${fullPath}"`,
+    matchPath: true,
+    max: 10,
+    includeSize: true,
+    includeDates: true,
+    includeExtension: true,
+    includeAttributes: true,
+  });
+  const target = fullPath.toLowerCase();
+  const match = resp.results.find((r) => r.fullPath.toLowerCase() === target);
+  if (!match) {
+    throw new ValidationError(
+      `File not found in Everything index: ${fullPath}`,
+      "FILE_NOT_FOUND",
+    );
+  }
+  return match;
 }
 
 export async function getStatus(): Promise<{

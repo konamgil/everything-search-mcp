@@ -1,10 +1,28 @@
 {
   "name": "@konamgil/everything-search-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MCP server exposing voidtools Everything search via FFI. Supports Everything 1.4 (filename search) and 1.5 (content indexing + snippet highlighting). Index-backed full-text search faster than ripgrep when the content index is built.",
   "type": "module",
   "bin": {
     "everything-search-mcp": "dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./search": {
+      "types": "./dist/everything-search.d.ts",
+      "import": "./dist/everything-search.js"
+    },
+    "./v3": {
+      "types": "./dist/everything-sdk-v3.d.ts",
+      "import": "./dist/everything-sdk-v3.js"
+    },
+    "./v1": {
+      "types": "./dist/everything-sdk.d.ts",
+      "import": "./dist/everything-sdk.js"
+    }
   },
   "files": [
     "dist",
